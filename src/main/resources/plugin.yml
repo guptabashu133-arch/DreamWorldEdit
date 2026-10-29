@@ -1,0 +1,28 @@
+name: DreamWorldEdit
+version: '${project.version}'
+main: org.mydreamduels.dreamworldedit.DreamWorldEdit
+api-version: '1.21'
+author: javacoder99
+description: WorldEdit / FAWE style world editing for Paper, Folia and Spigot.
+# Runs on Paper, Folia AND plain Spigot - see platform/PlatformSupport.
+folia-supported: true
+# Commands (//set, //copy, /brush ...) are registered at startup - see command/Commands.
+
+permissions:
+  dreamworldedit.*:
+    description: Every DreamWorldEdit command, unlimited blocks
+    default: op
+    children:
+      dreamworldedit.admin: true
+      dreamworldedit.brush.use: true
+      dreamworldedit.limit.unlimited: true
+  dreamworldedit.admin:
+    description: /dwe reload
+    default: op
+  dreamworldedit.brush.use:
+    default: op
+  dreamworldedit.limit.unlimited:
+    description: No block limit per edit (otherwise dreamworldedit.limit.<number> or limits.default)
+    default: op
+  # Each command: dreamworldedit.command.<name>, e.g. dreamworldedit.command.set,
+  # dreamworldedit.command.copy, dreamworldedit.command.schem, dreamworldedit.command.brush

@@ -1,0 +1,45 @@
+# ============================================================
+#  DreamWorldEdit - WorldEdit / FastAsyncWorldEdit style editing
+#  for Paper, Folia and Spigot.
+#
+#  Every edit is split into small per-chunk jobs that run on the
+#  thread owning that chunk (Folia region threads, or the main
+#  thread on Paper/Spigot), a few per tick - so even huge edits
+#  don't freeze the server.
+# ============================================================
+
+prefix: "&8[&dDWE&8] &r"
+
+# Selection wand (//wand): left-click = position 1, right-click = position 2.
+wand-item: WOODEN_AXE
+# Show the selected box with particles for a few seconds.
+visualize-selection: true
+
+limits:
+  # Max blocks per edit for players without dreamworldedit.limit.<n> / .unlimited
+  default: 100000
+
+history:
+  # How many edits each player can //undo.
+  size: 15
+
+# Biggest radius for //sphere, //cyl, //drain, //fill...
+max-radius: 100
+# Biggest brush size.
+max-brush-size: 25
+butcher-default-radius: 50
+
+performance:
+  # Chunk jobs started per tick. Higher = faster edits, more load per tick.
+  chunks-per-tick: 8
+  # Max jobs running at once (mostly matters on Folia, where they run in parallel).
+  max-in-flight: 64
+  # Height of one job (a chunk is split into slabs this tall).
+  slab-height: 64
+
+schematics:
+  # Also look here for //schem load / list (relative to the server folder),
+  # so schematics you already have from WorldEdit/FAWE just work.
+  extra-folders:
+    - plugins/WorldEdit/schematics
+    - plugins/FastAsyncWorldEdit/schematics
