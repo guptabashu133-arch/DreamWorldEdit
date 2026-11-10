@@ -40,6 +40,9 @@ public final class SchematicIO {
         try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
             s = Nbt.readGzip(in).getValue();
         }
+        if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".litematic") || s.get("Regions") instanceof Map<?, ?>) {
+            return loadLitematic(s);
+        }
         if (s.get("Schematic") instanceof Map<?, ?> inner) s = (Map<String, Object>) inner;
         int version = num(s.get("Version"), 1);
         int width = num(s.get("Width"), 0) & 0xFFFF;
@@ -97,6 +100,100 @@ public final class SchematicIO {
             index++;
         }
         return new Loaded(clip, unknown);
+    }
+
+    /**
+     * Litematica .litematic: one or more regions, each with its own palette and a tightly packed
+     * long[] of palette indexes (an entry may span two longs). All regions go into one clipboard;
+     * the offset keeps Litematica's placement origin, so the build lands where Litematica's
+     * placement shows it when the player stands on the origin.
+     */
+    @SuppressWarnings("unchecked")
+    private static Loaded loadLitematic(Map<String, Object> root) throws IOException {
+        if (!(root.get("Regions") instanceof Map<?, ?> regionsRaw) || regionsRaw.isEmpty()) throw new IOException("Litematic without regions");
+        Map<String, Object> regions = (Map<String, Object>) regionsRaw;
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        record Reg(int x, int y, int z, int sx, int sy, int sz, Map<String, Object> data) {
+        }
+        java.util.List<Reg> list = new java.util.ArrayList<>();
+        for (Object o : regions.values()) {
+            if (!(o instanceof Map<?, ?> rr)) continue;
+            Map<String, Object> r = (Map<String, Object>) rr;
+            int[] pos = vec(r.get("Position")), size = vec(r.get("Size"));
+            if (pos == null || size == null) continue;
+            int sx = Math.abs(size[0]), sy = Math.abs(size[1]), sz = Math.abs(size[2]);
+            if (sx == 0 || sy == 0 || sz == 0) continue;
+            // a negative size means the region grows the other way from its position
+            int x = pos[0] + (size[0] < 0 ? size[0] + 1 : 0), y = pos[1] + (size[1] < 0 ? size[1] + 1 : 0), z = pos[2] + (size[2] < 0 ? size[2] + 1 : 0);
+            list.add(new Reg(x, y, z, sx, sy, sz, r));
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x + sx - 1);
+            maxY = Math.max(maxY, y + sy - 1);
+            maxZ = Math.max(maxZ, z + sz - 1);
+        }
+        if (list.isEmpty()) throw new IOException("Litematic has no usable regions");
+        long volume = (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+        if (volume > 200_000_000L) throw new IOException("Litematic is too big (" + volume + " blocks)");
+        Clipboard clip = Clipboard.empty(maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1, new BlockVec(minX, minY, minZ), null);
+        int unknown = 0;
+        Map<String, BlockData> cache = new HashMap<>();
+        for (Reg reg : list) {
+            java.util.List<Object> pal = reg.data().get("BlockStatePalette") instanceof java.util.List<?> l ? (java.util.List<Object>) l : java.util.List.of();
+            BlockData[] palette = new BlockData[Math.max(1, pal.size())];
+            for (int i = 0; i < pal.size(); i++) {
+                String state = stateString(pal.get(i));
+                BlockData b = cache.computeIfAbsent(state, SchematicIO::parseState);
+                if (b == null) {
+                    unknown++;
+                    b = Blocks.AIR;
+                }
+                palette[i] = b;
+            }
+            if (!(reg.data().get("BlockStates") instanceof long[] packed)) continue;
+            int bits = Math.max(2, 32 - Integer.numberOfLeadingZeros(Math.max(1, palette.length - 1)));
+            long mask = (1L << bits) - 1;
+            int layer = reg.sx() * reg.sz();
+            long total = (long) layer * reg.sy();
+            for (long index = 0; index < total; index++) {
+                long start = index * bits;
+                int startArr = (int) (start >> 6), endArr = (int) (((index + 1) * bits - 1) >> 6);
+                if (endArr >= packed.length) break;
+                int startBit = (int) (start & 63);
+                int value = (int) (startArr == endArr ? (packed[startArr] >>> startBit) & mask
+                        : ((packed[startArr] >>> startBit) | (packed[endArr] << (64 - startBit))) & mask);
+                BlockData d = value < palette.length ? palette[value] : Blocks.AIR;
+                if (d == null) continue;
+                int y = (int) (index / layer), rem = (int) (index % layer), z = rem / reg.sx(), x = rem % reg.sx();
+                clip.set(reg.x() - minX + x, reg.y() - minY + y, reg.z() - minZ + z, d);
+            }
+        }
+        // anything no region covered stays empty (null = skipped by paste)
+        return new Loaded(clip, unknown);
+    }
+
+    private static int[] vec(Object o) {
+        if (!(o instanceof Map<?, ?> m)) return null;
+        return new int[]{num(m.get("x"), 0), num(m.get("y"), 0), num(m.get("z"), 0)};
+    }
+
+    /** {Name:"minecraft:oak_stairs", Properties:{facing:"north"...}} -> "minecraft:oak_stairs[facing=north,...]" */
+    private static String stateString(Object o) {
+        if (!(o instanceof Map<?, ?> m)) return "minecraft:air";
+        String name = String.valueOf(m.get("Name") == null ? "minecraft:air" : m.get("Name"));
+        if (m.get("Properties") instanceof Map<?, ?> props && !props.isEmpty()) {
+            StringBuilder b = new StringBuilder(name).append('[');
+            boolean first = true;
+            for (Map.Entry<?, ?> e : props.entrySet()) {
+                if (!first) b.append(',');
+                b.append(e.getKey()).append('=').append(e.getValue());
+                first = false;
+            }
+            return b.append(']').toString();
+        }
+        return name;
     }
 
     private static BlockData parseState(String state) {

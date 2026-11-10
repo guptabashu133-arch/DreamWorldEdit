@@ -102,21 +102,21 @@ public final class ClipboardCommands {
         }, null, "/clearclipboard");
 
         // ------------------------------------------------------------ schematics
-        c.add("schematic", "/schem", "<save|load|list|delete> [name]", "Schematic files (.schem)", 1, (p, a) -> {
+        c.add("schematic", "/schem", "<paste|load|save|list|delete> [name]", "Schematic files (.schem, .litematic)", 1, (p, a) -> {
             String sub = a[0].toLowerCase(Locale.ROOT);
             switch (sub) {
                 case "list", "ls" -> {
                     List<String> names = new ArrayList<>();
                     for (File dir : folders(plugin)) {
-                        File[] files = dir.listFiles((d, n) -> n.endsWith(".schem") || n.endsWith(".schematic"));
+                        File[] files = dir.listFiles((d, n) -> isSchematic(n));
                         if (files == null) continue;
                         for (File f : files) {
-                            String n = f.getName().replaceFirst("\\.schem(atic)?$", "");
+                            String n = strip(f.getName());
                             if (!names.contains(n)) names.add(n);
                         }
                     }
                     names.sort(String.CASE_INSENSITIVE_ORDER);
-                    Msg.send(p, names.isEmpty() ? "&7No schematics yet - put .schem files in plugins/DreamWorldEdit/schematics."
+                    Msg.send(p, names.isEmpty() ? "&7No schematics yet - put .schem or .litematic files in plugins/DreamWorldEdit/schematics."
                             : "&7Schematics (" + names.size() + "): &f" + String.join("&7, &f", names));
                 }
                 case "save" -> {
@@ -134,10 +134,42 @@ public final class ClipboardCommands {
                         }
                     });
                 }
+                case "paste", "place" -> {
+                    // load + paste in one go, at your feet: /schem paste <name> [-a skip air] [-s select it]
+                    if (a.length < 2) throw new WeCommand.Usage("Give a name: /schem paste <name> [-a] [-s]");
+                    String typed = joinName(a);
+                    File file = find(plugin, name(typed));
+                    if (file == null) throw new WeCommand.Usage("No schematic called '" + typed + "'. See //schem list");
+                    boolean skipAir = Commands.flag(a, "-a"), select = Commands.flag(a, "-s");
+                    BlockVec target = BlockVec.of(p.getLocation());
+                    org.bukkit.World world = p.getWorld();
+                    Msg.send(p, "&7Loading &f" + file.getName() + "&7...");
+                    plugin.scheduler().runAsync(() -> {
+                        SchematicIO.Loaded loaded;
+                        try {
+                            loaded = SchematicIO.load(file);
+                        } catch (IOException | RuntimeException e) {
+                            Msg.err(p, "Could not load " + file.getName() + ": " + e.getMessage());
+                            return;
+                        }
+                        Clipboard clip = loaded.clipboard();
+                        plugin.sessions().get(p).setClipboard(clip);
+                        if (loaded.unknownBlocks() > 0) Msg.err(p, loaded.unknownBlocks() + " block type(s) were unknown on this version and became air.");
+                        plugin.scheduler().runForEntity(p, () -> plugin.edits().submit(p, "paste " + strip(file.getName()), clip.volume(), budget ->
+                                ops.paste(world, clip, List.of(target), skipAir, null, null, "paste", budget).thenApply(res -> {
+                                    if (select) {
+                                        BlockVec lo = target.add(clip.offset());
+                                        plugin.sessions().get(p).selection().setCuboid(world, lo, lo.add(clip.width() - 1, clip.height() - 1, clip.length() - 1));
+                                    }
+                                    return res;
+                                })));
+                    });
+                }
                 case "load" -> {
                     if (a.length < 2) throw new WeCommand.Usage("Give a name.");
-                    File file = find(plugin, name(a[1]));
-                    if (file == null) throw new WeCommand.Usage("No schematic called '" + a[1] + "'. See //schem list");
+                    String typed = joinName(a);
+                    File file = find(plugin, name(typed));
+                    if (file == null) throw new WeCommand.Usage("No schematic called '" + typed + "'. See //schem list");
                     plugin.scheduler().runAsync(() -> {
                         try {
                             SchematicIO.Loaded loaded = SchematicIO.load(file);
@@ -161,11 +193,12 @@ public final class ClipboardCommands {
                 default -> throw new WeCommand.Usage(null);
             }
         }, (p, a) -> {
-            if (a.length == 1) return List.of("save", "load", "list", "delete");
+            if (a.length == 1) return List.of("paste", "load", "save", "list", "delete");
+            if (a.length > 2 && a[0].equalsIgnoreCase("paste")) return List.of("-a", "-s");
             List<String> names = new ArrayList<>();
             for (File dir : folders(plugin)) {
-                File[] files = dir.listFiles((d, n) -> n.endsWith(".schem"));
-                if (files != null) for (File f : files) names.add(f.getName().replaceFirst("\\.schem$", ""));
+                File[] files = dir.listFiles((d, n) -> isSchematic(n));
+                if (files != null) for (File f : files) names.add(strip(f.getName()));
             }
             return names;
         }, "/schematic", "schem", "schematic");
@@ -181,8 +214,28 @@ public final class ClipboardCommands {
         }, null, "/clearhistory");
     }
 
+    private static boolean isSchematic(String n) {
+        String l = n.toLowerCase(Locale.ROOT);
+        return l.endsWith(".schem") || l.endsWith(".schematic") || l.endsWith(".litematic");
+    }
+
+    private static String strip(String fileName) {
+        return fileName.replaceFirst("(?i)\\.(schem|schematic|litematic)$", "");
+    }
+
+    /** Names with spaces ("pew pew builds"): every word after the sub-command that isn't a flag. */
+    private static String joinName(String[] a) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 1; i < a.length; i++) {
+            if (a[i].startsWith("-") && a[i].length() <= 3) continue;
+            if (!b.isEmpty()) b.append(' ');
+            b.append(a[i]);
+        }
+        return b.toString();
+    }
+
     private static String name(String raw) {
-        String n = raw.replaceFirst("\\.schem(atic)?$", "");
+        String n = strip(raw);
         if (!SAFE_NAME.matcher(n).matches() || n.contains("..")) throw new WeCommand.Usage("Schematic names may use letters, numbers, spaces, _ - and .");
         return n;
     }
@@ -207,10 +260,13 @@ public final class ClipboardCommands {
 
     private static File find(DreamWorldEdit plugin, String name) {
         for (File dir : folders(plugin)) {
-            for (String ext : new String[]{".schem", ".schematic", ""}) {
+            for (String ext : new String[]{".schem", ".litematic", ".schematic", ""}) {
                 File f = new File(dir, name + ext);
                 if (f.isFile()) return f;
             }
+            // names are matched without caring about upper/lower case (SPAWNU, Sayonihousee...)
+            File[] all = dir.listFiles((d, n) -> isSchematic(n));
+            if (all != null) for (File f : all) if (strip(f.getName()).equalsIgnoreCase(name)) return f;
         }
         return null;
     }

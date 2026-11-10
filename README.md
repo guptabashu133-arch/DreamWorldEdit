@@ -27,7 +27,11 @@ ever read or written from the wrong thread, and big edits never freeze the serve
 **Clipboard:** `//copy [-m mask]`, `//cut [leftover] [-m mask]`, `//paste [-a] [-s] [-o]`, `//rotate <90|180|270>`,
 `//flip [dir]`, `/clearclipboard`
 
-**Schematics:** `//schem save <name> [-f]`, `//schem load <name>`, `//schem list`, `//schem delete <name>`
+**Schematics:** `/schem paste <name> [-a] [-s]` (load + paste at your feet in one go), `//schem save <name> [-f]`,
+`//schem load <name>`, `//schem list`, `//schem delete <name>`
+**Litematica `.litematic` files work too** (every region, all block states): copy them from your
+`.minecraft/schematics` folder into `plugins/DreamWorldEdit/schematics/`, stand where Litematica's placement origin
+would be and run `/schem paste <name>`. Names may have spaces and any upper/lower case (`/schem paste pew pew builds`).
 Sponge `.schem` files (WorldEdit 7 / FAWE format, v2 + v3 read, v2 written). Files go in
 `plugins/DreamWorldEdit/schematics/`; `plugins/WorldEdit/schematics` and `plugins/FastAsyncWorldEdit/schematics`
 are searched too.
