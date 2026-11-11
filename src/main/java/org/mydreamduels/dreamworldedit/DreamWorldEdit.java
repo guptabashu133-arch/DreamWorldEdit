@@ -4,6 +4,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.mydreamduels.dreamworldedit.command.BrushCommands;
 import org.mydreamduels.dreamworldedit.command.ClipboardCommands;
 import org.mydreamduels.dreamworldedit.command.Commands;
+import org.mydreamduels.dreamworldedit.command.SpawnZoneCommands;
 import org.mydreamduels.dreamworldedit.command.GeneralCommands;
 import org.mydreamduels.dreamworldedit.command.NavigationCommands;
 import org.mydreamduels.dreamworldedit.command.RegionCommands;
@@ -32,6 +33,8 @@ public class DreamWorldEdit extends JavaPlugin {
     private Operations ops;
     private EditService edits;
     private Visualizer visualizer;
+    private org.mydreamduels.dreamworldedit.spawn.SpawnManager spawns;
+    private org.mydreamduels.dreamworldedit.zone.ZoneManager zones;
 
     @Override
     public void onEnable() {
@@ -55,9 +58,14 @@ public class DreamWorldEdit extends JavaPlugin {
         BrushCommands.register(commands);
         NavigationCommands.register(commands);
         GeneralCommands.register(commands);
+        SpawnZoneCommands.register(commands);
         commands.registerAll();
 
         getServer().getPluginManager().registerEvents(new ToolListener(this), this);
+        spawns = new org.mydreamduels.dreamworldedit.spawn.SpawnManager(this);
+        zones = new org.mydreamduels.dreamworldedit.zone.ZoneManager(this);
+        getServer().getPluginManager().registerEvents(spawns, this);
+        getServer().getPluginManager().registerEvents(zones, this);
         new java.io.File(getDataFolder(), "schematics").mkdirs();
 
         getLogger().info("Enabled on " + PlatformSupport.name() + " with " + commands.all().size() + " commands.");
@@ -74,6 +82,8 @@ public class DreamWorldEdit extends JavaPlugin {
     }
 
     public SchedulerBridge scheduler() { return scheduler; }
+    public org.mydreamduels.dreamworldedit.spawn.SpawnManager spawns() { return spawns; }
+    public org.mydreamduels.dreamworldedit.zone.ZoneManager zones() { return zones; }
     public SessionManager sessions() { return sessions; }
     public Engine engine() { return engine; }
     public Operations ops() { return ops; }

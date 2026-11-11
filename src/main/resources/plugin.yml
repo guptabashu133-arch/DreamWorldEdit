@@ -16,10 +16,21 @@ permissions:
       dreamworldedit.admin: true
       dreamworldedit.brush.use: true
       dreamworldedit.limit.unlimited: true
+      dreamworldedit.zone.bypass: true
+      dreamworldedit.spawn.instant: true
   dreamworldedit.admin:
     description: /dwe reload
     default: op
   dreamworldedit.brush.use:
+    default: op
+  dreamworldedit.command.spawn:
+    description: /spawn
+    default: true
+  dreamworldedit.spawn.instant:
+    description: /spawn without the countdown
+    default: op
+  dreamworldedit.zone.bypass:
+    description: Build and open chests inside protected zones (pvp/damage rules still apply)
     default: op
   dreamworldedit.limit.unlimited:
     description: No block limit per edit (otherwise dreamworldedit.limit.<number> or limits.default)
