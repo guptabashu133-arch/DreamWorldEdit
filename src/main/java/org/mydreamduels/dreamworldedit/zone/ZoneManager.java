@@ -206,6 +206,8 @@ public final class ZoneManager implements Listener {
             case BUILD -> "&cThis area is protected - you can't build here.";
             case CONTAINERS -> "&cThis area is protected - you can't open that here.";
             case USE -> "&cYou can't use that here.";
+            case PEARLS -> "&cEnder pearls don't work here.";
+            case DROPS -> "&cYou can't drop items here.";
             default -> "&cYou can't do that here.";
         };
         String text = plugin.getConfig().getString("zones.messages." + f.id(), def);
@@ -217,6 +219,57 @@ public final class ZoneManager implements Listener {
         if (bypass(p) || !blocked(b, Zone.Flag.BUILD)) return false;
         warn(p, Zone.Flag.BUILD);
         return true;
+    }
+
+    // ------------------------------------------------------------------ pearls / drops / trampling
+
+    /** Throwing a pearl inside a zone: stopped before it leaves the hand (the pearl isn't used up). */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onPearlThrow(org.bukkit.event.player.PlayerInteractEvent e) {
+        if (e.getItem() == null || e.getItem().getType() != Material.ENDER_PEARL) return;
+        if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        Player p = e.getPlayer();
+        if (bypass(p) || !blocked(p.getLocation(), Zone.Flag.PEARLS)) return;
+        e.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+        e.setCancelled(true);
+        warn(p, Zone.Flag.PEARLS);
+    }
+
+    /** A pearl thrown from outside can't land inside, and chorus fruit can't hop into / out of a zone. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onPearlTeleport(org.bukkit.event.player.PlayerTeleportEvent e) {
+        var c = e.getCause();
+        if (c != org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.ENDER_PEARL
+                && c != org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.CHORUS_FRUIT) return;
+        Player p = e.getPlayer();
+        if (bypass(p)) return;
+        if (blocked(e.getTo(), Zone.Flag.PEARLS) || blocked(e.getFrom(), Zone.Flag.PEARLS)) {
+            e.setCancelled(true);
+            warn(p, Zone.Flag.PEARLS);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onDrop(org.bukkit.event.player.PlayerDropItemEvent e) {
+        Player p = e.getPlayer();
+        if (bypass(p) || !blocked(p.getLocation(), Zone.Flag.DROPS)) return;
+        e.setCancelled(true);
+        warn(p, Zone.Flag.DROPS);
+    }
+
+    /** Jumping on farmland (players and mobs). */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onTrample(org.bukkit.event.player.PlayerInteractEvent e) {
+        if (e.getAction() != Action.PHYSICAL || e.getClickedBlock() == null || e.getClickedBlock().getType() != Material.FARMLAND) return;
+        if (blocked(e.getClickedBlock(), Zone.Flag.TRAMPLE)) {
+            e.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onMobTrample(org.bukkit.event.entity.EntityInteractEvent e) {
+        if (e.getBlock().getType() == Material.FARMLAND && blocked(e.getBlock(), Zone.Flag.TRAMPLE)) e.setCancelled(true);
     }
 
     // ------------------------------------------------------------------ build

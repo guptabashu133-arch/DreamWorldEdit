@@ -71,3 +71,25 @@ are searched too.
 Block entity contents (chest items, sign text) and entities are not copied/pasted - only blocks.
 No `//regen`, `//deform`, `//generate` formulas, CUI support, or `/anvil`. Biome changes are not undoable.
 Don't run it together with WorldEdit/FAWE - both use the same `//` commands.
+
+## Protected zones (`/zone`)
+Select an area (`//wand`, then left and right click), then `/zone create spawn` (add `-full` for sky to bedrock).
+`/zone flag <zone> <rule> on|off` changes a rule. `/zone list | info | select | redefine | delete`.
+
+| Rule | Default | Blocks |
+|---|---|---|
+| `build` | off | breaking / placing blocks, buckets, item frames, armor stands |
+| `containers` | off | opening chests, barrels, furnaces, shulkers |
+| `use` | on | doors, trapdoors, gates, buttons, levers |
+| `pvp` | off | players hitting each other |
+| `damage` | off | any damage (falling, mobs, fire...) |
+| `hunger` | off | hunger going down |
+| `mobs` | off | monsters spawning |
+| `explosions` | off | TNT, creepers, crystals breaking blocks |
+| `fire` | off | fire spreading |
+| `pearls` | off | ender pearls (throwing inside, landing inside) and chorus fruit |
+| `drops` | off | dropping items |
+| `trample` | off | trampling farmland |
+
+Ops and `dreamworldedit.zone.bypass` can still build, open containers, throw pearls and drop items; pvp, damage and
+hunger rules apply to everyone.

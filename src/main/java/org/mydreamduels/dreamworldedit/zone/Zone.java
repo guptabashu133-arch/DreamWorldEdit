@@ -20,7 +20,10 @@ public final class Zone {
         HUNGER(false, "Hunger going down"),
         MOBS(false, "Monsters spawning by themselves"),
         EXPLOSIONS(false, "TNT, creepers and crystals breaking blocks"),
-        FIRE(false, "Fire spreading and burning blocks");
+        FIRE(false, "Fire spreading and burning blocks"),
+        PEARLS(false, "Ender pearls (throwing, landing) and chorus fruit teleports"),
+        DROPS(false, "Dropping items (ops / bypass can)"),
+        TRAMPLE(false, "Trampling farmland and crops");
 
         public final boolean allowedByDefault;
         public final String description;
@@ -47,6 +50,9 @@ public final class Zone {
                 case "mobs", "mobspawn", "mobspawning", "monsters" -> MOBS;
                 case "explosions", "explosion", "tnt", "creeper" -> EXPLOSIONS;
                 case "fire", "firespread" -> FIRE;
+                case "pearls", "pearl", "enderpearl", "enderpearls", "chorus" -> PEARLS;
+                case "drops", "drop", "itemdrop", "dropitems" -> DROPS;
+                case "trample", "trampling", "farmland", "crops" -> TRAMPLE;
                 default -> null;
             };
         }
