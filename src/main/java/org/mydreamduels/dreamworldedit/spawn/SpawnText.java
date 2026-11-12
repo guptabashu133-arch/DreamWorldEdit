@@ -36,6 +36,26 @@ final class SpawnText {
         p.sendTitle(Msg.color(title.replace("{icon}", "")), Msg.color(subtitle.replace("{icon}", "")), fadeIn, stay, fadeOut);
     }
 
+    /** One line in the action bar (live countdown). */
+    @SuppressWarnings("deprecation")
+    static void actionBar(Player p, String text, String icon, int glyph) {
+        if (PAPER) {
+            p.sendActionBar(Paper.text(text, bedrock(p) ? null : (SPRITES ? icon : null), bedrock(p) ? glyph : 0));
+            return;
+        }
+        p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                net.md_5.bungee.api.chat.TextComponent.fromLegacyText(Msg.color(text.replace("{icon}", ""))));
+    }
+
+    /** One line in chat. */
+    static void chat(Player p, String text, String icon, int glyph) {
+        if (PAPER) {
+            p.sendMessage(Paper.text(text, bedrock(p) ? null : (SPRITES ? icon : null), bedrock(p) ? glyph : 0));
+            return;
+        }
+        p.sendMessage(Msg.color(text.replace("{icon}", "")));
+    }
+
     private static boolean has(String c) {
         try {
             Class.forName(c);

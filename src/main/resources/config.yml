@@ -62,10 +62,16 @@ spawn:
   # /spawn counts down this long on screen (moving or getting hurt cancels it). 0 = instant.
   # dreamworldedit.spawn.instant skips it.
   countdown-seconds: 5
+  # Where /spawn shows its texts:
+  #   actionbar = countdown in the action bar, "welcome" / "cancelled" in chat (nothing in the middle of the screen)
+  #   title     = big title + subtitle in the middle of the screen
+  display: actionbar
   # The countdown on screen. {icon} = an item picture (Java sprite / Bedrock pack glyph),
   # {seconds} = seconds left.
   text:
     title: "&6&lTaraash&e&lMC"
+    # In front of the chat lines (display: actionbar).
+    chat-prefix: "&f★ &6&lTARAASH&e&lMC &8» &r"
     subtitle: "{icon} &eTeleporting to spawn in &f&l{seconds}&e..."
     arrived: "{icon} &aWelcome to spawn!"
     cancelled-title: "&c&lTeleport cancelled"

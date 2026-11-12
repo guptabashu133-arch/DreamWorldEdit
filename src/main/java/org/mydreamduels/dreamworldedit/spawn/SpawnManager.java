@@ -193,18 +193,42 @@ public final class SpawnManager implements Listener {
         if (h[0] != null) warmups.put(p.getUniqueId(), h[0]);
     }
 
+    /** "title" = big text in the middle of the screen; anything else = countdown in the action bar, the rest in chat. */
+    private boolean titles() {
+        return "title".equalsIgnoreCase(plugin.getConfig().getString("spawn.display", "actionbar"));
+    }
+
+    private String chatPrefix() {
+        return text("chat-prefix", "&f★ &6&lTARAASH&e&lMC &8» &r");
+    }
+
     private void tick(Player p, int seconds) {
-        show(p, "title", "&6&lTaraash&e&lMC", "subtitle", "{icon} &eTeleporting to spawn in &f&l{seconds}&e...", "item/clock_00", GLYPH_CLOCK, seconds, 25);
+        if (titles()) {
+            show(p, "title", "&6&lTaraash&e&lMC", "subtitle", "{icon} &eTeleporting to spawn in &f&l{seconds}&e...", "item/clock_00", GLYPH_CLOCK, seconds, 25);
+        } else {
+            SpawnText.actionBar(p, text("subtitle", "{icon} &eTeleporting to spawn in &f&l{seconds}&e...").replace("{seconds}", String.valueOf(seconds)),
+                    "item/clock_00", GLYPH_CLOCK);
+        }
         sound(p, "block.note_block.pling", 0.8f + (5 - Math.min(5, seconds)) * 0.15f);
     }
 
     private void arrived(Player p) {
-        show(p, "title", "&6&lTaraash&e&lMC", "arrived", "{icon} &aWelcome to spawn!", "item/ender_pearl", GLYPH_PEARL, 0, 40);
+        if (titles()) {
+            show(p, "title", "&6&lTaraash&e&lMC", "arrived", "{icon} &aWelcome to spawn!", "item/ender_pearl", GLYPH_PEARL, 0, 40);
+        } else {
+            SpawnText.actionBar(p, "", null, 0);
+            SpawnText.chat(p, chatPrefix() + text("arrived", "{icon} &aWelcome to spawn!"), "item/ender_pearl", GLYPH_PEARL);
+        }
         sound(p, "entity.enderman.teleport", 1.0f);
     }
 
     private void cancelled(Player p, String key, String def) {
-        show(p, "cancelled-title", "&c&lTeleport cancelled", key, def, "item/barrier", GLYPH_CROSS, 0, 40);
+        if (titles()) {
+            show(p, "cancelled-title", "&c&lTeleport cancelled", key, def, "item/barrier", GLYPH_CROSS, 0, 40);
+        } else {
+            SpawnText.actionBar(p, "", null, 0);
+            SpawnText.chat(p, chatPrefix() + text("cancelled-title", "&c&lTeleport cancelled") + " &8- " + text(key, def), "item/barrier", GLYPH_CROSS);
+        }
         sound(p, "block.note_block.bass", 0.6f);
     }
 
