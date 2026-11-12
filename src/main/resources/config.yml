@@ -76,9 +76,26 @@ spawn:
 #  /zone flag <zone> <rule> on|off changes a rule.
 # ============================================================
 zones:
-  # Shown in the action bar when something is blocked ("" = say nothing).
+  # When a rule stops a player they get a line in chat (MiniMessage; {zone} = the zone's name,
+  # {player} = the player). "" = say nothing.
   messages:
-    pvp: "&cPvP is off here."
-    build: "&cThis area is protected - you can't build here."
-    containers: "&cThis area is protected - you can't open that here."
-    use: "&cYou can't use that here."
+    pvp: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FF5C5C><b>PvP is disabled</b></#FF5C5C> <gray>- you can't fight inside <white>{zone}</white>.</gray>"
+    build: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Building is disabled</b></#FFB347> <gray>- blocks can't be broken or placed in <white>{zone}</white>.</gray>"
+    containers: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Containers are locked</b></#FFB347> <gray>- you can't open that in <white>{zone}</white>.</gray>"
+    use: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Not allowed</b></#FFB347> <gray>- you can't use that in <white>{zone}</white>.</gray>"
+    pearls: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#B98CFF><b>Ender pearls are disabled</b></#B98CFF> <gray>in <white>{zone}</white>.</gray>"
+    drops: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Item drops are disabled</b></#FFB347> <gray>in <white>{zone}</white> - keep your items safe.</gray>"
+  # The item icon in front of each message (Paper 1.21.9+, the game's own textures - no resource
+  # pack). Any item/<name> or block/<name> texture.
+  icons:
+    pvp: "item/iron_sword"
+    build: "item/iron_pickaxe"
+    containers: "block/barrel_top"
+    use: "item/oak_door"
+    pearls: "item/ender_pearl"
+    drops: "item/chest_minecart"
+  sprite-icons: true
+  # chat (default) or actionbar.
+  message-where: chat
+  # A player sees the same message at most once every this many seconds.
+  message-cooldown-seconds: 3

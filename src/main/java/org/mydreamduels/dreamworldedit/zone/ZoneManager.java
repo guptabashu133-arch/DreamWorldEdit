@@ -194,25 +194,55 @@ public final class ZoneManager implements Listener {
         return p.hasPermission("dreamworldedit.zone.bypass");
     }
 
-    /** A short "you can't do that here" in the action bar, at most once a second. */
-    @SuppressWarnings("deprecation")
+    /** The old one-line action bar texts: replaced by the new chat messages when still unchanged. */
+    private static final java.util.Set<String> OLD_DEFAULTS = java.util.Set.of("&cPvP is off here.",
+            "&cThis area is protected - you can't build here.", "&cThis area is protected - you can't open that here.",
+            "&cYou can't use that here.", "&cEnder pearls don't work here.", "&cYou can't drop items here.", "&cYou can't do that here.");
+
+    /** Default chat line and icon for each rule ({zone} = the zone's name). */
+    private static String[] defaults(Zone.Flag f) {
+        String lead = "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> ";
+        return switch (f) {
+            case PVP -> new String[]{lead + "<#FF5C5C><b>PvP is disabled</b></#FF5C5C> <gray>- you can't fight inside <white>{zone}</white>.</gray>", "item/iron_sword"};
+            case BUILD -> new String[]{lead + "<#FFB347><b>Building is disabled</b></#FFB347> <gray>- blocks can't be broken or placed in <white>{zone}</white>.</gray>", "item/iron_pickaxe"};
+            case CONTAINERS -> new String[]{lead + "<#FFB347><b>Containers are locked</b></#FFB347> <gray>- you can't open that in <white>{zone}</white>.</gray>", "block/barrel_top"};
+            case USE -> new String[]{lead + "<#FFB347><b>Not allowed</b></#FFB347> <gray>- you can't use that in <white>{zone}</white>.</gray>", "item/oak_door"};
+            case PEARLS -> new String[]{lead + "<#B98CFF><b>Ender pearls are disabled</b></#B98CFF> <gray>in <white>{zone}</white>.</gray>", "item/ender_pearl"};
+            case DROPS -> new String[]{lead + "<#FFB347><b>Item drops are disabled</b></#FFB347> <gray>in <white>{zone}</white> - keep your items safe.</gray>", "item/chest_minecart"};
+            default -> new String[]{lead + "<#FF5C5C><b>Not allowed</b></#FF5C5C> <gray>in <white>{zone}</white>.</gray>", "item/barrier"};
+        };
+    }
+
+    /** "You can't do that here" in chat, with the rule's item icon; at most once per few seconds per player. */
     private void warn(Player p, Zone.Flag f) {
         long now = System.currentTimeMillis();
         Long last = lastWarn.get(p.getUniqueId());
-        if (last != null && now - last < 1000) return;
+        long cool = (long) (plugin.getConfig().getDouble("zones.message-cooldown-seconds", 3) * 1000);
+        if (last != null && now - last < cool) return;
         lastWarn.put(p.getUniqueId(), now);
-        String def = switch (f) {
-            case PVP -> "&cPvP is off here.";
-            case BUILD -> "&cThis area is protected - you can't build here.";
-            case CONTAINERS -> "&cThis area is protected - you can't open that here.";
-            case USE -> "&cYou can't use that here.";
-            case PEARLS -> "&cEnder pearls don't work here.";
-            case DROPS -> "&cYou can't drop items here.";
-            default -> "&cYou can't do that here.";
-        };
-        String text = plugin.getConfig().getString("zones.messages." + f.id(), def);
+        String[] def = defaults(f);
+        String text = plugin.getConfig().getString("zones.messages." + f.id(), def[0]);
+        if (text != null && OLD_DEFAULTS.contains(text)) text = def[0]; // an untouched old config: the new look
         if (text == null || text.isBlank()) return;
-        p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR, net.md_5.bungee.api.chat.TextComponent.fromLegacyText(Msg.color(text)));
+        String zone = zoneName(p.getLocation(), f);
+        text = text.replace("{zone}", zone == null ? "this area" : zone).replace("{player}", p.getName());
+        String icon = plugin.getConfig().getString("zones.icons." + f.id(), def[1]);
+        String where = plugin.getConfig().getString("zones.message-where", "chat");
+        if ("actionbar".equalsIgnoreCase(where)) {
+            p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                    net.md_5.bungee.api.chat.TextComponent.fromLegacyText(Msg.color(ZoneChat.legacy(text))));
+            return;
+        }
+        ZoneChat.send(p, text, icon, plugin.getConfig().getBoolean("zones.sprite-icons", true));
+    }
+
+    /** The name of the zone at this spot that blocks the rule (for {zone}). */
+    private String zoneName(org.bukkit.Location l, Zone.Flag f) {
+        if (l == null || l.getWorld() == null) return null;
+        for (Zone z : zones) {
+            if (z.contains(l) && !z.allows(f)) return z.name();
+        }
+        return null;
     }
 
     private boolean denyBuild(Player p, Block b) {
