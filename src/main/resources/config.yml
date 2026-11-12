@@ -59,9 +59,18 @@ spawn:
   bed-respawn: true
   # Worlds whose deaths are left alone (e.g. an event world with its own respawn).
   skip-worlds: []
-  # /spawn waits this long (moving or getting hurt cancels it). 0 = instant.
+  # /spawn counts down this long on screen (moving or getting hurt cancels it). 0 = instant.
   # dreamworldedit.spawn.instant skips it.
-  warmup-seconds: 3
+  countdown-seconds: 5
+  # The countdown on screen. {icon} = an item picture (Java sprite / Bedrock pack glyph),
+  # {seconds} = seconds left.
+  text:
+    title: "&6&lTaraash&e&lMC"
+    subtitle: "{icon} &eTeleporting to spawn in &f&l{seconds}&e..."
+    arrived: "{icon} &aWelcome to spawn!"
+    cancelled-title: "&c&lTeleport cancelled"
+    cancelled-move: "{icon} &7You moved - stand still next time."
+    cancelled-damage: "{icon} &7You got hurt - try again somewhere safe."
   messages:
     countdown: "&eTeleporting to spawn in &f{seconds}s&e - don't move."
     teleported: "&aWelcome back to spawn!"

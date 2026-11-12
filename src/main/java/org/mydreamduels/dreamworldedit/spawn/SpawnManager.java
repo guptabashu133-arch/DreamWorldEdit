@@ -133,23 +133,41 @@ public final class SpawnManager implements Listener {
         else p.teleport(to, PlayerTeleportEvent.TeleportCause.PLUGIN);
     }
 
-    /** /spawn: a short countdown (moving or getting hurt cancels it), instant with the permission. */
+    // TaraashMC-Icons pack, shared page EB: clock = EB0C, pearl = EB03, cross = EB16, check = EB15
+    private static final int GLYPH_CLOCK = 0xEB0C, GLYPH_PEARL = 0xEB03, GLYPH_CROSS = 0xEB16;
+
+    private String text(String key, String def) {
+        return plugin.getConfig().getString("spawn.text." + key, def);
+    }
+
+    private void show(Player p, String titleKey, String titleDef, String subKey, String subDef, String icon, int glyph, int seconds, int stay) {
+        SpawnText.title(p, text(titleKey, titleDef), text(subKey, subDef).replace("{seconds}", String.valueOf(seconds)), icon, glyph, 0, stay, 6);
+    }
+
+    private void sound(Player p, String name, float pitch) {
+        try {
+            p.playSound(p.getLocation(), name, 0.8f, pitch);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** /spawn: a 5 second countdown on screen (moving or getting hurt cancels it), instant with the permission. */
     public void sendToSpawn(Player p) {
         Location to = spawn();
         if (to == null) {
             Msg.err(p, msg("not-set", "There's no spawn yet. An admin can set it with /setspawn."));
             return;
         }
-        int seconds = Math.max(0, plugin.getConfig().getInt("spawn.warmup-seconds", 3));
+        int seconds = Math.max(0, plugin.getConfig().getInt("spawn.countdown-seconds", 5));
         if (seconds == 0 || p.hasPermission("dreamworldedit.spawn.instant")) {
             teleport(p, to);
-            Msg.send(p, msg("teleported", "&aWelcome back to spawn!"));
+            arrived(p);
             return;
         }
         cancelWarmup(p.getUniqueId());
         Location start = p.getLocation();
         int[] left = {seconds};
-        actionBar(p, msg("countdown", "&eTeleporting to spawn in &f{seconds}s&e - don't move.").replace("{seconds}", String.valueOf(left[0])));
+        tick(p, left[0]);
         CancelHandle[] h = new CancelHandle[1];
         h[0] = plugin.scheduler().runForEntityRepeating(p, () -> {
             if (!p.isOnline()) {
@@ -159,7 +177,7 @@ public final class SpawnManager implements Listener {
             Location now = p.getLocation();
             if (now.getWorld() != start.getWorld() || now.distanceSquared(start) > 0.25) {
                 cancelWarmup(p.getUniqueId());
-                actionBar(p, msg("cancelled-move", "&cTeleport cancelled - you moved."));
+                cancelled(p, "cancelled-move", "&7You moved - stand still next time.");
                 return;
             }
             if (--left[0] <= 0) {
@@ -167,12 +185,27 @@ public final class SpawnManager implements Listener {
                 Location target = spawn();
                 if (target == null) return;
                 teleport(p, target);
-                actionBar(p, msg("teleported", "&aWelcome back to spawn!"));
+                arrived(p);
                 return;
             }
-            actionBar(p, msg("countdown", "&eTeleporting to spawn in &f{seconds}s&e - don't move.").replace("{seconds}", String.valueOf(left[0])));
+            tick(p, left[0]);
         }, 20L, 20L);
         if (h[0] != null) warmups.put(p.getUniqueId(), h[0]);
+    }
+
+    private void tick(Player p, int seconds) {
+        show(p, "title", "&6&lTaraash&e&lMC", "subtitle", "{icon} &eTeleporting to spawn in &f&l{seconds}&e...", "item/clock_00", GLYPH_CLOCK, seconds, 25);
+        sound(p, "block.note_block.pling", 0.8f + (5 - Math.min(5, seconds)) * 0.15f);
+    }
+
+    private void arrived(Player p) {
+        show(p, "title", "&6&lTaraash&e&lMC", "arrived", "{icon} &aWelcome to spawn!", "item/ender_pearl", GLYPH_PEARL, 0, 40);
+        sound(p, "entity.enderman.teleport", 1.0f);
+    }
+
+    private void cancelled(Player p, String key, String def) {
+        show(p, "cancelled-title", "&c&lTeleport cancelled", key, def, "item/barrier", GLYPH_CROSS, 0, 40);
+        sound(p, "block.note_block.bass", 0.6f);
     }
 
     private void cancelWarmup(UUID id) {
@@ -184,7 +217,7 @@ public final class SpawnManager implements Listener {
     public void onHurt(EntityDamageEvent e) {
         if (e.getEntity() instanceof Player p && warmups.containsKey(p.getUniqueId())) {
             cancelWarmup(p.getUniqueId());
-            actionBar(p, msg("cancelled-damage", "&cTeleport cancelled - you got hurt."));
+            cancelled(p, "cancelled-damage", "&7You got hurt - try again somewhere safe.");
         }
     }
 
