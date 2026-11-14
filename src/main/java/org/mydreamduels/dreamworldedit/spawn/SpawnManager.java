@@ -302,7 +302,23 @@ public final class SpawnManager implements Listener {
         respawned.put(p.getUniqueId(), System.currentTimeMillis());
         if (!wantRespawn(p, e.isBedSpawn() || e.isAnchorSpawn(), p.getWorld())) return;
         Location to = spawn();
-        if (to != null) e.setRespawnLocation(to);
+        if (to == null) return;
+        e.setRespawnLocation(to);
+        claim(p);
+        if (PlatformSupport.isFolia()) {
+            // Folia: another plugin may still move the player right after respawning - make sure
+            // they end up at the spawn
+            plugin.scheduler().runForEntityDelayed(p, () -> {
+                Location target = spawn();
+                if (target != null && p.isOnline() && !p.isDead()
+                        && (p.getWorld() != target.getWorld() || p.getLocation().distanceSquared(target) > 4)) teleport(p, target);
+            }, 10L);
+        }
+    }
+
+    /** Tells world plugins (DreamMultiverse) that this respawn is ours, so they leave it alone. */
+    private void claim(Player p) {
+        p.setMetadata("dream.spawn-respawn", new org.bukkit.metadata.FixedMetadataValue(plugin, System.currentTimeMillis()));
     }
 
     /** Folia may not fire PlayerRespawnEvent: move the player once they're alive again. */
@@ -327,6 +343,7 @@ public final class SpawnManager implements Listener {
             if (ev != null && ev >= died) return; // the respawn event did it already
             boolean usedBed = bed != null && bed.getWorld() == p.getWorld() && bed.distanceSquared(p.getLocation()) < 16 * 16;
             if (!wantRespawn(p, usedBed, deathWorld)) return;
+            claim(p);
             // a little later than the world plugin's own respawn move, so this one is the last
             plugin.scheduler().runForEntityDelayed(p, () -> {
                 Location to = spawn();
