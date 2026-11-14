@@ -73,6 +73,8 @@ No `//regen`, `//deform`, `//generate` formulas, CUI support, or `/anvil`. Biome
 Don't run it together with WorldEdit/FAWE - both use the same `//` commands.
 
 ## Protected zones (`/zone`)
+Land claims (DreamLandClaim) can't be made inside or across a zone where `build` is off.
+
 Select an area (`//wand`, then left and right click), then `/zone create spawn` (add `-full` for sky to bedrock).
 `/zone flag <zone> <rule> on|off` changes a rule. `/zone list | info | select | redefine | delete`.
 
@@ -90,6 +92,7 @@ Select an area (`//wand`, then left and right click), then `/zone create spawn` 
 | `pearls` | off | ender pearls (throwing inside, landing inside) and chorus fruit |
 | `drops` | off | dropping items |
 | `trample` | off | trampling farmland |
+| `push` | off | players knocking each other around: hits, wind charges, maces, walking into each other |
 
 Ops and `dreamworldedit.zone.bypass` can still build, open containers, throw pearls and drop items; pvp, damage and
 hunger rules apply to everyone.

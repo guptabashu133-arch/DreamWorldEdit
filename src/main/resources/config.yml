@@ -94,12 +94,13 @@ zones:
   # When a rule stops a player they get a line in chat (MiniMessage; {zone} = the zone's name,
   # {player} = the player). "" = say nothing.
   messages:
-    pvp: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FF5C5C><b>PvP is disabled</b></#FF5C5C> <gray>- you can't fight inside <white>{zone}</white>.</gray>"
-    build: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Building is disabled</b></#FFB347> <gray>- blocks can't be broken or placed in <white>{zone}</white>.</gray>"
-    containers: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Containers are locked</b></#FFB347> <gray>- you can't open that in <white>{zone}</white>.</gray>"
-    use: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Not allowed</b></#FFB347> <gray>- you can't use that in <white>{zone}</white>.</gray>"
-    pearls: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#B98CFF><b>Ender pearls are disabled</b></#B98CFF> <gray>in <white>{zone}</white>.</gray>"
-    drops: "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> <#FFB347><b>Item drops are disabled</b></#FFB347> <gray>in <white>{zone}</white> - keep your items safe.</gray>"
+    pvp: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#FF5C5C><b>PvP is disabled</b></#FF5C5C> <gray>- no fighting</gray> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
+    build: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#FFB347><b>Building is disabled</b></#FFB347> <gray>- no breaking or placing</gray> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
+    containers: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#FFB347><b>Containers are locked</b></#FFB347> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
+    use: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#FFB347><b>You can't use that</b></#FFB347> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
+    pearls: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#B98CFF><b>Ender pearls are disabled</b></#B98CFF> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
+    drops: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#FFB347><b>Item drops are disabled</b></#FFB347> <gray>- your items stay safe</gray> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
+    push: "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> <#7DD3FC><b>No pushing</b></#7DD3FC> <gray>- players can't be knocked around</gray> <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>"
   # The item icon in front of each message (Paper 1.21.9+, the game's own textures - no resource
   # pack). Any item/<name> or block/<name> texture.
   icons:
@@ -109,6 +110,7 @@ zones:
     use: "item/oak_door"
     pearls: "item/ender_pearl"
     drops: "item/chest_minecart"
+    push: "item/wind_charge"
   sprite-icons: true
   # chat (default) or actionbar.
   message-where: chat

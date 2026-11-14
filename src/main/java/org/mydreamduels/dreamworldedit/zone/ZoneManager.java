@@ -182,6 +182,18 @@ public final class ZoneManager implements Listener {
         return false;
     }
 
+    /**
+     * For land-claim plugins: the name of a zone where building is off that this column area
+     * touches, or null if it touches none. Used by DreamLandClaim so nobody can claim spawn.
+     */
+    public String protectedZoneOverlapping(String world, int minX, int minZ, int maxX, int maxZ) {
+        for (Zone z : zones) {
+            if (!z.world().equals(world) || z.allows(Zone.Flag.BUILD)) continue;
+            if (minX <= z.maxX() && maxX >= z.minX() && minZ <= z.maxZ() && maxZ >= z.minZ()) return z.name();
+        }
+        return null;
+    }
+
     public boolean blocked(Location l, Zone.Flag f) {
         return l != null && l.getWorld() != null && blocked(l.getWorld().getName(), l.getBlockX(), l.getBlockY(), l.getBlockZ(), f);
     }
@@ -200,16 +212,20 @@ public final class ZoneManager implements Listener {
             "&cYou can't use that here.", "&cEnder pearls don't work here.", "&cYou can't drop items here.", "&cYou can't do that here.");
 
     /** Default chat line and icon for each rule ({zone} = the zone's name). */
+    private static final String OLD_LEAD = "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> ";
+
     private static String[] defaults(Zone.Flag f) {
-        String lead = "<dark_gray>[</dark_gray><gradient:#5EEAD4:#4FA3FF><b>Protected</b></gradient><dark_gray>]</dark_gray> ";
+        String lead = "<gradient:#5EEAD4:#4FA3FF><b>PROTECTED</b></gradient> <dark_gray>»</dark_gray> ";
+        String in = " <gray>in</gray> <white><b>{zone}</b></white><gray>.</gray>";
         return switch (f) {
-            case PVP -> new String[]{lead + "<#FF5C5C><b>PvP is disabled</b></#FF5C5C> <gray>- you can't fight inside <white>{zone}</white>.</gray>", "item/iron_sword"};
-            case BUILD -> new String[]{lead + "<#FFB347><b>Building is disabled</b></#FFB347> <gray>- blocks can't be broken or placed in <white>{zone}</white>.</gray>", "item/iron_pickaxe"};
-            case CONTAINERS -> new String[]{lead + "<#FFB347><b>Containers are locked</b></#FFB347> <gray>- you can't open that in <white>{zone}</white>.</gray>", "block/barrel_top"};
-            case USE -> new String[]{lead + "<#FFB347><b>Not allowed</b></#FFB347> <gray>- you can't use that in <white>{zone}</white>.</gray>", "item/oak_door"};
-            case PEARLS -> new String[]{lead + "<#B98CFF><b>Ender pearls are disabled</b></#B98CFF> <gray>in <white>{zone}</white>.</gray>", "item/ender_pearl"};
-            case DROPS -> new String[]{lead + "<#FFB347><b>Item drops are disabled</b></#FFB347> <gray>in <white>{zone}</white> - keep your items safe.</gray>", "item/chest_minecart"};
-            default -> new String[]{lead + "<#FF5C5C><b>Not allowed</b></#FF5C5C> <gray>in <white>{zone}</white>.</gray>", "item/barrier"};
+            case PVP -> new String[]{lead + "<#FF5C5C><b>PvP is disabled</b></#FF5C5C> <gray>- no fighting</gray>" + in, "item/iron_sword"};
+            case BUILD -> new String[]{lead + "<#FFB347><b>Building is disabled</b></#FFB347> <gray>- no breaking or placing</gray>" + in, "item/iron_pickaxe"};
+            case CONTAINERS -> new String[]{lead + "<#FFB347><b>Containers are locked</b></#FFB347>" + in, "block/barrel_top"};
+            case USE -> new String[]{lead + "<#FFB347><b>You can't use that</b></#FFB347>" + in, "item/oak_door"};
+            case PEARLS -> new String[]{lead + "<#B98CFF><b>Ender pearls are disabled</b></#B98CFF>" + in, "item/ender_pearl"};
+            case DROPS -> new String[]{lead + "<#FFB347><b>Item drops are disabled</b></#FFB347> <gray>- your items stay safe</gray>" + in, "item/chest_minecart"};
+            case PUSH -> new String[]{lead + "<#7DD3FC><b>No pushing</b></#7DD3FC> <gray>- players can't be knocked around</gray>" + in, "item/wind_charge"};
+            default -> new String[]{lead + "<#FF5C5C><b>Not allowed</b></#FF5C5C>" + in, "item/barrier"};
         };
     }
 
@@ -222,7 +238,7 @@ public final class ZoneManager implements Listener {
         lastWarn.put(p.getUniqueId(), now);
         String[] def = defaults(f);
         String text = plugin.getConfig().getString("zones.messages." + f.id(), def[0]);
-        if (text != null && OLD_DEFAULTS.contains(text)) text = def[0]; // an untouched old config: the new look
+        if (text != null && (OLD_DEFAULTS.contains(text) || text.startsWith(OLD_LEAD))) text = def[0]; // an untouched old config: the new look
         if (text == null || text.isBlank()) return;
         String zone = zoneName(p.getLocation(), f);
         text = text.replace("{zone}", zone == null ? "this area" : zone).replace("{player}", p.getName());
@@ -443,6 +459,54 @@ public final class ZoneManager implements Listener {
         }
         if (e instanceof org.bukkit.entity.TNTPrimed t && t.getSource() instanceof Player p) return p;
         return null;
+    }
+
+    // ------------------------------------------------------------------ push
+
+    /**
+     * "push" off: nobody gets knocked around inside the zone by someone else - sword hits,
+     * wind charges, maces, being shoved by mobs. A player's own wind charge still launches them.
+     */
+    /** Called by {@link ZoneKnockback} (Paper's knockback event). */
+    void knockback(Player victim, Entity sourceEntity, org.bukkit.event.Cancellable e) {
+        if (zones.isEmpty() || !blocked(victim.getLocation(), Zone.Flag.PUSH)) return;
+        Player source = sourceEntity == null ? null : player(sourceEntity);
+        if (source != null && source.equals(victim)) return; // own wind charge jump
+        e.setCancelled(true);
+        if (source != null) warn(source, Zone.Flag.PUSH);
+    }
+
+    /** Players inside a no-push zone can't be shoved by other players or mobs walking into them. */
+    private final java.util.Set<UUID> madeSolid = ConcurrentHashMap.newKeySet();
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMoveCollide(org.bukkit.event.player.PlayerMoveEvent e) {
+        org.bukkit.Location to = e.getTo();
+        if (to == null || (e.getFrom().getBlockX() == to.getBlockX() && e.getFrom().getBlockZ() == to.getBlockZ()
+                && e.getFrom().getBlockY() == to.getBlockY() && e.getFrom().getWorld() == to.getWorld())) return;
+        updateCollision(e.getPlayer(), to);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleportCollide(org.bukkit.event.player.PlayerTeleportEvent e) {
+        if (e.getTo() != null) updateCollision(e.getPlayer(), e.getTo());
+    }
+
+    @EventHandler
+    public void onQuitCollide(org.bukkit.event.player.PlayerQuitEvent e) {
+        if (madeSolid.remove(e.getPlayer().getUniqueId())) e.getPlayer().setCollidable(true);
+        lastWarn.remove(e.getPlayer().getUniqueId());
+    }
+
+    private void updateCollision(Player p, org.bukkit.Location to) {
+        boolean noPush = !zones.isEmpty() && blocked(to, Zone.Flag.PUSH);
+        UUID id = p.getUniqueId();
+        if (noPush && p.isCollidable()) {
+            p.setCollidable(false);
+            madeSolid.add(id);
+        } else if (!noPush && madeSolid.remove(id)) {
+            p.setCollidable(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)

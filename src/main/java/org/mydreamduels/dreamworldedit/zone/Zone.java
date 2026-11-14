@@ -23,7 +23,8 @@ public final class Zone {
         FIRE(false, "Fire spreading and burning blocks"),
         PEARLS(false, "Ender pearls (throwing, landing) and chorus fruit teleports"),
         DROPS(false, "Dropping items (ops / bypass can)"),
-        TRAMPLE(false, "Trampling farmland and crops");
+        TRAMPLE(false, "Trampling farmland and crops"),
+        PUSH(false, "Players pushing / knocking each other around (hits, wind charges, walking into each other)");
 
         public final boolean allowedByDefault;
         public final String description;
@@ -53,6 +54,7 @@ public final class Zone {
                 case "pearls", "pearl", "enderpearl", "enderpearls", "chorus" -> PEARLS;
                 case "drops", "drop", "itemdrop", "dropitems" -> DROPS;
                 case "trample", "trampling", "farmland", "crops" -> TRAMPLE;
+                case "push", "pushing", "knockback", "collision", "collisions", "windcharge" -> PUSH;
                 default -> null;
             };
         }

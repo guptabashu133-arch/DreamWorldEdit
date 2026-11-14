@@ -66,6 +66,12 @@ public class DreamWorldEdit extends JavaPlugin {
         zones = new org.mydreamduels.dreamworldedit.zone.ZoneManager(this);
         getServer().getPluginManager().registerEvents(spawns, this);
         getServer().getPluginManager().registerEvents(zones, this);
+        try {
+            Class.forName("io.papermc.paper.event.entity.EntityPushedByEntityAttackEvent");
+            getServer().getPluginManager().registerEvents(new org.mydreamduels.dreamworldedit.zone.ZoneKnockback(zones), this);
+        } catch (ClassNotFoundException ignored) {
+            // Spigot: no knockback event - the push rule only stops collisions there
+        }
         new java.io.File(getDataFolder(), "schematics").mkdirs();
 
         getLogger().info("Enabled on " + PlatformSupport.name() + " with " + commands.all().size() + " commands.");
