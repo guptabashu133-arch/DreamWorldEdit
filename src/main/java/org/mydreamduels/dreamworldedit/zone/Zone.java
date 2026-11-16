@@ -24,7 +24,10 @@ public final class Zone {
         PEARLS(false, "Ender pearls (throwing, landing) and chorus fruit teleports"),
         DROPS(false, "Dropping items (ops / bypass can)"),
         TRAMPLE(false, "Trampling farmland and crops"),
-        PUSH(false, "Players pushing / knocking each other around (hits, wind charges, walking into each other)");
+        PUSH(false, "Players pushing / knocking each other around (hits, wind charges, walking into each other)"),
+        KEEPINV(false, "Keeping your items and XP when you die here"),
+        ESCAPE(true, "Leaving the area alive (walking out, pearls, teleports) - off = only by dying"),
+        WINDCHARGE(true, "Throwing wind charges");
 
         public final boolean allowedByDefault;
         public final String description;
@@ -54,7 +57,10 @@ public final class Zone {
                 case "pearls", "pearl", "enderpearl", "enderpearls", "chorus" -> PEARLS;
                 case "drops", "drop", "itemdrop", "dropitems" -> DROPS;
                 case "trample", "trampling", "farmland", "crops" -> TRAMPLE;
-                case "push", "pushing", "knockback", "collision", "collisions", "windcharge" -> PUSH;
+                case "push", "pushing", "knockback", "collision", "collisions" -> PUSH;
+                case "keepinv", "keepinventory", "keep" -> KEEPINV;
+                case "escape", "leave", "exit" -> ESCAPE;
+                case "windcharge", "windcharges", "wind" -> WINDCHARGE;
                 default -> null;
             };
         }

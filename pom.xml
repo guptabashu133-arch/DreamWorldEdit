@@ -6,7 +6,7 @@
 
     <groupId>org.mydreamduels</groupId>
     <artifactId>DreamWorldEdit</artifactId>
-    <version>1.5.2</version>
+    <version>1.6.0</version>
     <packaging>jar</packaging>
 
     <properties>

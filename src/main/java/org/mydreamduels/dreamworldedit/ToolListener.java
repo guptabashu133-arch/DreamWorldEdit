@@ -30,6 +30,18 @@ public final class ToolListener implements Listener {
         Material item = event.getItem().getType();
         Action action = event.getAction();
 
+        // the /mosspit and /keepinv wand (a tagged diamond axe)
+        if (org.mydreamduels.dreamworldedit.command.SpawnZoneCommands.isAreaWand(plugin, event.getItem()) && event.getClickedBlock() != null) {
+            if (action == Action.LEFT_CLICK_BLOCK) {
+                event.setCancelled(true);
+                SelectionCommands.setPos(plugin, p, 1, BlockVec.of(event.getClickedBlock().getLocation()));
+            } else if (action == Action.RIGHT_CLICK_BLOCK) {
+                event.setCancelled(true);
+                SelectionCommands.setPos(plugin, p, 2, BlockVec.of(event.getClickedBlock().getLocation()));
+            }
+            return;
+        }
+
         Brush brush = plugin.sessions().get(p).brushes().get(item);
         if (brush != null && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
             event.setCancelled(true);

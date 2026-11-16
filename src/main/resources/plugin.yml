@@ -17,6 +17,7 @@ permissions:
       dreamworldedit.brush.use: true
       dreamworldedit.limit.unlimited: true
       dreamworldedit.zone.bypass: true
+      dreamworldedit.zone.escape: true
       dreamworldedit.spawn.instant: true
   dreamworldedit.admin:
     description: /dwe reload
@@ -28,6 +29,9 @@ permissions:
     default: true
   dreamworldedit.spawn.instant:
     description: /spawn without the countdown
+    default: op
+  dreamworldedit.zone.escape:
+    description: Walk / teleport out of a no-escape zone (moss pit) alive
     default: op
   dreamworldedit.zone.bypass:
     description: Build and open chests inside protected zones (pvp/damage rules still apply)

@@ -18,6 +18,71 @@ public final class SpawnZoneCommands {
     private SpawnZoneCommands() {
     }
 
+    /** The diamond-axe wand of /mosspit and /keepinv (left click = pos1, right click = pos2). */
+    public static final String AREA_WAND_KEY = "area_wand";
+
+    public static boolean isAreaWand(org.bukkit.plugin.Plugin plugin, org.bukkit.inventory.ItemStack it) {
+        if (it == null || it.getType() != org.bukkit.Material.DIAMOND_AXE || !it.hasItemMeta()) return false;
+        return it.getItemMeta().getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin, AREA_WAND_KEY),
+                org.bukkit.persistence.PersistentDataType.STRING);
+    }
+
+    /** /mosspit and /keepinv: wand, create <name> (zone with these rules), list, delete <name>. */
+    private static void areaCommand(Commands c, String name, String desc, java.util.Map<Zone.Flag, Boolean> rules) {
+        var plugin = c.plugin();
+        c.add("spawn", name, "<wand|create <name>|list|delete <name>>", desc, 0, (p, a) -> {
+            ZoneManager zm = plugin.zones();
+            String sub = a.length == 0 ? "help" : a[0].toLowerCase(Locale.ROOT);
+            switch (sub) {
+                case "wand" -> {
+                    org.bukkit.inventory.ItemStack wand = new org.bukkit.inventory.ItemStack(org.bukkit.Material.DIAMOND_AXE);
+                    var meta = wand.getItemMeta();
+                    meta.setDisplayName(Msg.color("&b&l" + (name.equals("mosspit") ? "Moss Pit" : "Keep Inventory") + " Wand"));
+                    meta.setLore(List.of(Msg.color("&7Left click a block: &fcorner 1"), Msg.color("&7Right click a block: &fcorner 2"),
+                            Msg.color("&7Then: &e/" + name + " create <name>")));
+                    meta.getPersistentDataContainer().set(new org.bukkit.NamespacedKey(plugin, AREA_WAND_KEY),
+                            org.bukkit.persistence.PersistentDataType.STRING, name);
+                    wand.setItemMeta(meta);
+                    for (var left : p.getInventory().addItem(wand).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
+                    Msg.send(p, "&aWand given. &7Left click one corner, right click the opposite corner (include the full height), then &e/" + name + " create <name>&7.");
+                }
+                case "create", "define", "add" -> {
+                    if (a.length < 2) throw new WeCommand.Usage("Give it a name, e.g. /" + name + " create pit1");
+                    String zoneName = a[1];
+                    if (!NAME.matcher(zoneName).matches()) throw new WeCommand.Usage("Names: letters, numbers, _ and - (max 32).");
+                    if (zm.get(zoneName) != null) throw new WeCommand.Usage("A zone called '" + zoneName + "' already exists.");
+                    Region r = c.selection(p);
+                    BlockVec lo = r.min(), hi = r.max();
+                    Zone z = new Zone(zoneName, r.world().getName(), lo.x(), lo.y(), lo.z(), hi.x(), hi.y(), hi.z());
+                    zm.add(z);
+                    for (var e : rules.entrySet()) zm.setFlag(z, e.getKey(), e.getValue());
+                    Msg.send(p, "&a" + (name.equals("mosspit") ? "Moss pit" : "Keep-inventory area") + " &f" + zoneName + " &acreated &7("
+                            + (z.maxX() - z.minX() + 1) + " x " + (z.maxY() - z.minY() + 1) + " x " + (z.maxZ() - z.minZ() + 1) + ").");
+                    showFlags(p, z);
+                    Msg.raw(p, "&7 Change a rule: &e/zone flag " + zoneName + " <rule> on|off");
+                }
+                case "list", "ls" -> {
+                    Msg.send(p, "&7Zones:");
+                    for (Zone z : zm.zones()) Msg.raw(p, " &8- &f" + ZoneManager.describe(z));
+                }
+                case "delete", "remove", "del" -> {
+                    if (a.length < 2) throw new WeCommand.Usage("Which one?");
+                    Zone z = zone(zm, a[1]);
+                    zm.remove(z.name());
+                    Msg.send(p, "&e" + z.name() + " &edeleted.");
+                }
+                default -> {
+                    Msg.raw(p, "&8&m          &r &d/" + name + " &8&m          ");
+                    Msg.raw(p, "&7" + desc + ".");
+                    Msg.raw(p, "&e/" + name + " wand &7- a diamond axe: left click corner 1, right click corner 2");
+                    Msg.raw(p, "&e/" + name + " create <name> &7- make the area from your selection");
+                    Msg.raw(p, "&e/" + name + " list &8| &e/" + name + " delete <name>");
+                }
+            }
+        }, (p, a) -> a.length == 1 ? List.of("wand", "create", "list", "delete")
+                : a.length == 2 && a[0].equalsIgnoreCase("delete") ? plugin.zones().zones().stream().map(Zone::name).toList() : List.of());
+    }
+
     private static final java.util.regex.Pattern NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_-]{1,32}");
 
     public static void register(Commands c) {
@@ -42,6 +107,23 @@ public final class SpawnZoneCommands {
             plugin.spawns().remove();
             Msg.send(p, "&eSpawn removed. &7Players now use the normal world spawn again.");
         }, (p, a) -> List.of());
+
+        // ------------------------------------------------------------------ moss pit / keep-inventory areas
+        areaCommand(c, "mosspit", "Moss pit: PvP on, no building, no wind charges, the only way out is dying",
+                java.util.Map.ofEntries(java.util.Map.entry(Zone.Flag.PVP, true), java.util.Map.entry(Zone.Flag.BUILD, false),
+                        java.util.Map.entry(Zone.Flag.CONTAINERS, false), java.util.Map.entry(Zone.Flag.DAMAGE, true),
+                        java.util.Map.entry(Zone.Flag.HUNGER, true), java.util.Map.entry(Zone.Flag.PEARLS, false),
+                        java.util.Map.entry(Zone.Flag.DROPS, true), java.util.Map.entry(Zone.Flag.PUSH, true),
+                        java.util.Map.entry(Zone.Flag.WINDCHARGE, false), java.util.Map.entry(Zone.Flag.ESCAPE, false),
+                        java.util.Map.entry(Zone.Flag.KEEPINV, false), java.util.Map.entry(Zone.Flag.MOBS, false),
+                        java.util.Map.entry(Zone.Flag.EXPLOSIONS, false), java.util.Map.entry(Zone.Flag.FIRE, false)));
+        areaCommand(c, "keepinv", "Keep-inventory area: PvP on, no building, dying here keeps your items",
+                java.util.Map.ofEntries(java.util.Map.entry(Zone.Flag.PVP, true), java.util.Map.entry(Zone.Flag.BUILD, false),
+                        java.util.Map.entry(Zone.Flag.CONTAINERS, false), java.util.Map.entry(Zone.Flag.DAMAGE, true),
+                        java.util.Map.entry(Zone.Flag.HUNGER, true), java.util.Map.entry(Zone.Flag.DROPS, true),
+                        java.util.Map.entry(Zone.Flag.PUSH, true), java.util.Map.entry(Zone.Flag.KEEPINV, true),
+                        java.util.Map.entry(Zone.Flag.MOBS, false), java.util.Map.entry(Zone.Flag.EXPLOSIONS, false),
+                        java.util.Map.entry(Zone.Flag.FIRE, false)));
 
         // ------------------------------------------------------------------ zones
         c.add("spawn", "zone", "<create|flag|info|list|select|redefine|delete> ...", "Protected areas: no pvp, no building...", 0, (p, a) -> {

@@ -224,6 +224,8 @@ public final class ZoneManager implements Listener {
             case USE -> new String[]{lead + "<#FFB347><b>You can't use that</b></#FFB347>" + in, "item/oak_door"};
             case PEARLS -> new String[]{lead + "<#B98CFF><b>Ender pearls are disabled</b></#B98CFF>" + in, "item/ender_pearl"};
             case DROPS -> new String[]{lead + "<#FFB347><b>Item drops are disabled</b></#FFB347> <gray>- your items stay safe</gray>" + in, "item/chest_minecart"};
+            case ESCAPE -> new String[]{lead + "<#FF5C5C><b>No way out</b></#FF5C5C> <gray>- you only leave</gray> <white><b>{zone}</b></white> <gray>by dying.</gray>", "item/barrier"};
+            case WINDCHARGE -> new String[]{lead + "<#7DD3FC><b>Wind charges are disabled</b></#7DD3FC>" + in, "item/wind_charge"};
             case PUSH -> new String[]{lead + "<#7DD3FC><b>No pushing</b></#7DD3FC> <gray>- players can't be knocked around</gray>" + in, "item/wind_charge"};
             default -> new String[]{lead + "<#FF5C5C><b>Not allowed</b></#FF5C5C>" + in, "item/barrier"};
         };
@@ -459,6 +461,84 @@ public final class ZoneManager implements Listener {
         }
         if (e instanceof org.bukkit.entity.TNTPrimed t && t.getSource() instanceof Player p) return p;
         return null;
+    }
+
+    // ------------------------------------------------------------------ keep inventory / no escape / wind charges
+
+    /** keepinv on: dying here keeps items and XP. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDeathKeep(org.bukkit.event.entity.PlayerDeathEvent e) {
+        if (zones.isEmpty()) return;
+        Player p = e.getEntity();
+        for (Zone z : zones) {
+            if (!z.contains(p.getLocation()) || !z.allows(Zone.Flag.KEEPINV)) continue;
+            e.setKeepInventory(true);
+            e.getDrops().clear();
+            e.setKeepLevel(true);
+            e.setDroppedExp(0);
+            return;
+        }
+    }
+
+    /** players who just respawned may be moved anywhere (that's the way out of a no-escape zone) */
+    private final Map<UUID, Long> respawnedAt = new ConcurrentHashMap<>();
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawnMark(org.bukkit.event.player.PlayerRespawnEvent e) {
+        respawnedAt.put(e.getPlayer().getUniqueId(), System.currentTimeMillis());
+    }
+
+    /** The no-escape zone the player is in that the destination is outside of, or null. */
+    private Zone trapping(Player p, org.bukkit.Location from, org.bukkit.Location to) {
+        if (zones.isEmpty() || to == null || from == null) return null;
+        if (p.getGameMode() == org.bukkit.GameMode.CREATIVE || p.getGameMode() == org.bukkit.GameMode.SPECTATOR) return null;
+        if (p.isDead() || p.hasPermission("dreamworldedit.zone.escape")) return null;
+        Long r = respawnedAt.get(p.getUniqueId());
+        if (r != null && System.currentTimeMillis() - r < 5000) return null;
+        for (Zone z : zones) {
+            if (z.allows(Zone.Flag.ESCAPE) || !z.contains(from)) continue;
+            if (!z.contains(to)) return z;
+        }
+        return null;
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEscapeMove(org.bukkit.event.player.PlayerMoveEvent e) {
+        org.bukkit.Location f = e.getFrom(), t = e.getTo();
+        if (t == null || (f.getBlockX() == t.getBlockX() && f.getBlockY() == t.getBlockY() && f.getBlockZ() == t.getBlockZ())) return;
+        Player p = e.getPlayer();
+        if (trapping(p, f, t) == null) return;
+        org.bukkit.Location back = f.clone();
+        back.setYaw(t.getYaw());
+        back.setPitch(t.getPitch());
+        e.setTo(back);
+        p.setVelocity(new org.bukkit.util.Vector(0, Math.min(0, p.getVelocity().getY()), 0));
+        if (p.isGliding()) p.setGliding(false);
+        warn(p, Zone.Flag.ESCAPE);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEscapeTeleport(org.bukkit.event.player.PlayerTeleportEvent e) {
+        Player p = e.getPlayer();
+        // staff /tp (vanilla command) still works; /spawn, /home, pearls, portals... don't
+        if (e.getCause() == org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.COMMAND) return;
+        if (trapping(p, e.getFrom(), e.getTo()) == null) return;
+        e.setCancelled(true);
+        warn(p, Zone.Flag.ESCAPE);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onWindCharge(org.bukkit.event.entity.ProjectileLaunchEvent e) {
+        if (zones.isEmpty() || !(e.getEntity() instanceof org.bukkit.entity.AbstractWindCharge wc)) return;
+        if (!(wc.getShooter() instanceof Player p) || bypass(p)) return;
+        if (!blocked(p.getLocation(), Zone.Flag.WINDCHARGE)) return;
+        e.setCancelled(true);
+        warn(p, Zone.Flag.WINDCHARGE);
+    }
+
+    @EventHandler
+    public void onQuitEscape(org.bukkit.event.player.PlayerQuitEvent e) {
+        respawnedAt.remove(e.getPlayer().getUniqueId());
     }
 
     // ------------------------------------------------------------------ push
