@@ -329,7 +329,10 @@ public final class SpawnManager implements Listener {
         Player p = e.getEntity();
         long died = System.currentTimeMillis();
         World deathWorld = p.getWorld();
-        Location bed = p.getRespawnLocation();
+        // Folia: getRespawnLocation() reads the bed block, which throws when the bed is in another
+        // world ("World mismatch") - and then the player was never sent to spawn. Read the stored
+        // point without touching the block instead.
+        Location bed = storedRespawn(p);
         CancelHandle[] h = new CancelHandle[1];
         int[] waited = {0};
         h[0] = plugin.scheduler().runForEntityRepeating(p, () -> {
@@ -350,6 +353,14 @@ public final class SpawnManager implements Listener {
                 if (to != null && p.isOnline() && !p.isDead()) teleport(p, to);
             }, 3L);
         }, 1L, 1L);
+    }
+
+    private static Location storedRespawn(Player p) {
+        try {
+            return p.getRespawnLocation(false);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     @EventHandler
