@@ -29,15 +29,27 @@ public final class SpawnZoneCommands {
 
     /** /mosspit and /keepinv: wand, create <name> (zone with these rules), list, delete <name>. */
     private static void areaCommand(Commands c, String name, String desc, java.util.Map<Zone.Flag, Boolean> rules) {
+        areaCommand(c, name, name.equals("mosspit") ? "Moss Pit" : "Keep Inventory",
+                name.equals("mosspit") ? "Moss pit" : "Keep-inventory area", desc, rules, null, false);
+    }
+
+    /**
+     * An area command: wand, create &lt;name&gt; [-full] (zone with these rules), list, delete &lt;name&gt;.
+     * @param listFlag only zones with this rule on are listed (null = all zones)
+     * @param wandWithoutArgs the command on its own gives the wand (/spawnflywand) instead of the help
+     */
+    private static void areaCommand(Commands c, String name, String wandTitle, String areaWord, String desc,
+                                    java.util.Map<Zone.Flag, Boolean> rules, Zone.Flag listFlag, boolean wandWithoutArgs,
+                                    String... aliases) {
         var plugin = c.plugin();
-        c.add("spawn", name, "<wand|create <name>|list|delete <name>>", desc, 0, (p, a) -> {
+        c.add("spawn", name, "<wand|create <name> [-full]|list|delete <name>>", desc, 0, (p, a) -> {
             ZoneManager zm = plugin.zones();
-            String sub = a.length == 0 ? "help" : a[0].toLowerCase(Locale.ROOT);
+            String sub = a.length == 0 ? (wandWithoutArgs ? "wand" : "help") : a[0].toLowerCase(Locale.ROOT);
             switch (sub) {
                 case "wand" -> {
                     org.bukkit.inventory.ItemStack wand = new org.bukkit.inventory.ItemStack(org.bukkit.Material.DIAMOND_AXE);
                     var meta = wand.getItemMeta();
-                    meta.setDisplayName(Msg.color("&b&l" + (name.equals("mosspit") ? "Moss Pit" : "Keep Inventory") + " Wand"));
+                    meta.setDisplayName(Msg.color("&b&l" + wandTitle + " Wand"));
                     meta.setLore(List.of(Msg.color("&7Left click a block: &fcorner 1"), Msg.color("&7Right click a block: &fcorner 2"),
                             Msg.color("&7Then: &e/" + name + " create <name>")));
                     meta.getPersistentDataContainer().set(new org.bukkit.NamespacedKey(plugin, AREA_WAND_KEY),
@@ -45,25 +57,38 @@ public final class SpawnZoneCommands {
                     wand.setItemMeta(meta);
                     for (var left : p.getInventory().addItem(wand).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
                     Msg.send(p, "&aWand given. &7Left click one corner, right click the opposite corner (include the full height), then &e/" + name + " create <name>&7.");
+                    if (listFlag != null) {
+                        Msg.raw(p, "&8 Tip: add &7-full &8to cover sky to bedrock, or turn it on for a zone you already have: &7/zone flag spawn "
+                                + listFlag.id() + " on");
+                    }
                 }
                 case "create", "define", "add" -> {
-                    if (a.length < 2) throw new WeCommand.Usage("Give it a name, e.g. /" + name + " create pit1");
+                    if (a.length < 2) throw new WeCommand.Usage("Give it a name, e.g. /" + name + " create " + (listFlag == null ? "pit1" : "spawn" + listFlag.id()));
                     String zoneName = a[1];
                     if (!NAME.matcher(zoneName).matches()) throw new WeCommand.Usage("Names: letters, numbers, _ and - (max 32).");
-                    if (zm.get(zoneName) != null) throw new WeCommand.Usage("A zone called '" + zoneName + "' already exists.");
+                    if (zm.get(zoneName) != null) throw new WeCommand.Usage("A zone called '" + zoneName + "' already exists."
+                            + (listFlag == null ? "" : " Turn the rule on there instead: /zone flag " + zoneName + " " + listFlag.id() + " on"));
                     Region r = c.selection(p);
                     BlockVec lo = r.min(), hi = r.max();
-                    Zone z = new Zone(zoneName, r.world().getName(), lo.x(), lo.y(), lo.z(), hi.x(), hi.y(), hi.z());
-                    zm.add(z);
-                    for (var e : rules.entrySet()) zm.setFlag(z, e.getKey(), e.getValue());
-                    Msg.send(p, "&a" + (name.equals("mosspit") ? "Moss pit" : "Keep-inventory area") + " &f" + zoneName + " &acreated &7("
+                    boolean full = a.length > 2 && a[2].equalsIgnoreCase("-full");
+                    Zone z = new Zone(zoneName, r.world().getName(), lo.x(), full ? r.world().getMinHeight() : lo.y(), lo.z(),
+                            hi.x(), full ? r.world().getMaxHeight() - 1 : hi.y(), hi.z());
+                    for (var e : rules.entrySet()) z.copyRule(e.getKey(), e.getValue());
+                    zm.add(z); // rules first, so the one save has them
+                    Msg.send(p, "&a" + areaWord + " &f" + zoneName + " &acreated &7("
                             + (z.maxX() - z.minX() + 1) + " x " + (z.maxY() - z.minY() + 1) + " x " + (z.maxZ() - z.minZ() + 1) + ").");
                     showFlags(p, z);
                     Msg.raw(p, "&7 Change a rule: &e/zone flag " + zoneName + " <rule> on|off");
                 }
                 case "list", "ls" -> {
-                    Msg.send(p, "&7Zones:");
-                    for (Zone z : zm.zones()) Msg.raw(p, " &8- &f" + ZoneManager.describe(z));
+                    List<Zone> shown = new ArrayList<>();
+                    for (Zone z : zm.zones()) if (listFlag == null || z.allows(listFlag)) shown.add(z);
+                    if (shown.isEmpty()) {
+                        Msg.send(p, "&7None yet. &e/" + name + (wandWithoutArgs ? "" : " wand") + " &7to start.");
+                        return;
+                    }
+                    Msg.send(p, "&7" + areaWord + "s (" + shown.size() + "):");
+                    for (Zone z : shown) Msg.raw(p, " &8- &f" + ZoneManager.describe(z));
                 }
                 case "delete", "remove", "del" -> {
                     if (a.length < 2) throw new WeCommand.Usage("Which one?");
@@ -74,13 +99,26 @@ public final class SpawnZoneCommands {
                 default -> {
                     Msg.raw(p, "&8&m          &r &d/" + name + " &8&m          ");
                     Msg.raw(p, "&7" + desc + ".");
-                    Msg.raw(p, "&e/" + name + " wand &7- a diamond axe: left click corner 1, right click corner 2");
-                    Msg.raw(p, "&e/" + name + " create <name> &7- make the area from your selection");
+                    Msg.raw(p, "&e/" + name + (wandWithoutArgs ? "" : " wand") + " &7- a diamond axe: left click corner 1, right click corner 2");
+                    Msg.raw(p, "&e/" + name + " create <name> [-full] &7- make the area from your selection (-full = sky to bedrock)");
                     Msg.raw(p, "&e/" + name + " list &8| &e/" + name + " delete <name>");
                 }
             }
-        }, (p, a) -> a.length == 1 ? List.of("wand", "create", "list", "delete")
-                : a.length == 2 && a[0].equalsIgnoreCase("delete") ? plugin.zones().zones().stream().map(Zone::name).toList() : List.of());
+        }, (p, a) -> a.length == 1 ? List.of("wand", "create", "list", "delete", "help")
+                : a.length == 2 && a[0].equalsIgnoreCase("delete") ? plugin.zones().zones().stream()
+                .filter(z -> listFlag == null || z.allows(listFlag)).map(Zone::name).toList()
+                : a.length == 3 && a[0].equalsIgnoreCase("create") ? List.of("-full") : List.of(), aliases);
+    }
+
+    /**
+     * Rules for a pure fly / double-jump area: everything allowed, so it changes nothing but the one
+     * grant rule (protection still comes from the spawn zone it sits in - the strictest zone wins).
+     */
+    private static java.util.Map<Zone.Flag, Boolean> grantOnly(Zone.Flag grant) {
+        java.util.Map<Zone.Flag, Boolean> m = new java.util.EnumMap<>(Zone.Flag.class);
+        for (Zone.Flag f : Zone.Flag.values()) m.put(f, !f.isGrant());
+        m.put(grant, true);
+        return m;
     }
 
     private static final java.util.regex.Pattern NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_-]{1,32}");
@@ -124,6 +162,17 @@ public final class SpawnZoneCommands {
                         java.util.Map.entry(Zone.Flag.PUSH, true), java.util.Map.entry(Zone.Flag.KEEPINV, true),
                         java.util.Map.entry(Zone.Flag.MOBS, false), java.util.Map.entry(Zone.Flag.EXPLOSIONS, false),
                         java.util.Map.entry(Zone.Flag.FIRE, false)));
+
+        // ------------------------------------------------------------------ spawn fly / double jump areas
+        areaCommand(c, "spawnflywand", "Spawn Fly", "Spawn fly area",
+                "Spawn fly area: players with dreamworldedit.spawnfly can /spawnfly inside it, leaving turns fly off",
+                grantOnly(Zone.Flag.FLY), Zone.Flag.FLY, true, "spawnwand", "flywand");
+        areaCommand(c, "doublejumpwand", "Double Jump", "Double jump area",
+                "Double jump area: players with dreamworldedit.doublejump can double jump inside it, it stops outside",
+                grantOnly(Zone.Flag.DOUBLEJUMP), Zone.Flag.DOUBLEJUMP, true, "djwand");
+
+        c.add("spawn", "spawnfly", "", "Fly at spawn (turns off when you leave)", 0,
+                (p, a) -> plugin.spawnMovement().toggle(p), (p, a) -> List.of(), "sfly");
 
         // ------------------------------------------------------------------ zones
         c.add("spawn", "zone", "<create|flag|info|list|select|redefine|delete> ...", "Protected areas: no pvp, no building...", 0, (p, a) -> {

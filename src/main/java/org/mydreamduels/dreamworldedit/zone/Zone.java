@@ -27,7 +27,16 @@ public final class Zone {
         PUSH(false, "Players pushing / knocking each other around (hits, wind charges, walking into each other)"),
         KEEPINV(false, "Keeping your items and XP when you die here"),
         ESCAPE(true, "Leaving the area alive (walking out, pearls, teleports) - off = only by dying"),
-        WINDCHARGE(true, "Throwing wind charges");
+        WINDCHARGE(true, "Throwing wind charges"),
+        /** Grant rule: on = players with dreamworldedit.spawnfly may use /spawnfly here. */
+        FLY(false, "/spawnfly works here (players with dreamworldedit.spawnfly); leaving turns it off"),
+        /** Grant rule: on = players with dreamworldedit.doublejump can double jump here. */
+        DOUBLEJUMP(false, "Double jump (press jump twice) for players with dreamworldedit.doublejump");
+
+        /** Rules that GIVE something where they are on (any zone with it on is enough), instead of blocking. */
+        public boolean isGrant() {
+            return this == KEEPINV || this == FLY || this == DOUBLEJUMP;
+        }
 
         public final boolean allowedByDefault;
         public final String description;
@@ -61,6 +70,8 @@ public final class Zone {
                 case "keepinv", "keepinventory", "keep" -> KEEPINV;
                 case "escape", "leave", "exit" -> ESCAPE;
                 case "windcharge", "windcharges", "wind" -> WINDCHARGE;
+                case "fly", "flight", "spawnfly" -> FLY;
+                case "doublejump", "dj", "jump", "djump" -> DOUBLEJUMP;
                 default -> null;
             };
         }
@@ -99,6 +110,11 @@ public final class Zone {
     /** Same rules as another zone (used when a zone is moved). */
     public void copyFlags(Zone o) {
         for (Flag f : Flag.values()) flags.put(f, o.allows(f));
+    }
+
+    /** Sets a rule on a zone that isn't added yet (ZoneManager#setFlag for live zones). */
+    public void copyRule(Flag f, boolean allowed) {
+        flags.put(f, allowed);
     }
 
     void set(Flag f, boolean allowed) {

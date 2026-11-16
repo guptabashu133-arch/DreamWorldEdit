@@ -116,3 +116,41 @@ zones:
   message-where: chat
   # A player sees the same message at most once every this many seconds.
   message-cooldown-seconds: 3
+
+# ============================================================
+#  Spawn fly & double jump
+#  1. /spawnflywand  (or /doublejumpwand) - a diamond axe: left click corner 1, right click corner 2
+#  2. /spawnflywand create spawnfly -full   (/doublejumpwand create spawnjump -full)
+#     -full = from bedrock to the sky. Or turn it on for a zone you already have:
+#     /zone flag spawn fly on   |   /zone flag spawn doublejump on
+#  3. Give ranks the permissions with LuckPerms:
+#     /lp group vip permission set dreamworldedit.spawnfly true
+#     /lp group vip permission set dreamworldedit.doublejump true
+#  /spawnfly turns flight on inside the area; leaving it turns flight off (with fall protection).
+#  Double jump works by pressing jump twice, only inside the area.
+# ============================================================
+spawn-fly:
+  enabled: true
+  # Getting hit while flying turns spawn fly off.
+  disable-on-damage: true
+  # No fall damage for this many seconds after spawn fly turns off in the air / after a double jump.
+  fall-protection-seconds: 10
+  # MiniMessage. "" = say nothing.
+  messages:
+    enabled: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <#5EEA8C><b>Enabled</b></#5EEA8C> <gray>- it turns off when you leave spawn.</gray>"
+    disabled: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <#FFB347><b>Disabled</b></#FFB347><gray>.</gray>"
+    left-area: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <#FFB347><b>You left spawn</b></#FFB347> <gray>- fly is off.</gray>"
+    damaged: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <#FF5C5C><b>You took damage</b></#FF5C5C> <gray>- fly is off.</gray>"
+    not-here: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <#FF5C5C><b>Only at spawn</b></#FF5C5C> <gray>- go to spawn to use</gray> <white>/spawnfly</white><gray>.</gray>"
+    gamemode: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <gray>You can already fly in this game mode.</gray>"
+    feature-off: "<gradient:#7DD3FC:#A78BFA><b>SPAWN FLY</b></gradient> <dark_gray>»</dark_gray> <#FF5C5C>Spawn fly is turned off on this server.</#FF5C5C>"
+double-jump:
+  enabled: true
+  # Forward push and upward push of the jump.
+  power: 1.1
+  height: 0.85
+  # Time between two double jumps.
+  cooldown-ms: 800
+  # Any sound key ("" = none) and particle name ("" = none).
+  sound: "entity.bat.takeoff"
+  particle: CLOUD

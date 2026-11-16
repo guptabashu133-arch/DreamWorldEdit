@@ -35,6 +35,7 @@ public class DreamWorldEdit extends JavaPlugin {
     private Visualizer visualizer;
     private org.mydreamduels.dreamworldedit.spawn.SpawnManager spawns;
     private org.mydreamduels.dreamworldedit.zone.ZoneManager zones;
+    private org.mydreamduels.dreamworldedit.zone.SpawnMovement spawnMovement;
 
     @Override
     public void onEnable() {
@@ -66,6 +67,8 @@ public class DreamWorldEdit extends JavaPlugin {
         zones = new org.mydreamduels.dreamworldedit.zone.ZoneManager(this);
         getServer().getPluginManager().registerEvents(spawns, this);
         getServer().getPluginManager().registerEvents(zones, this);
+        spawnMovement = new org.mydreamduels.dreamworldedit.zone.SpawnMovement(this);
+        getServer().getPluginManager().registerEvents(spawnMovement, this);
         try {
             Class.forName("io.papermc.paper.event.entity.EntityPushedByEntityAttackEvent");
             getServer().getPluginManager().registerEvents(new org.mydreamduels.dreamworldedit.zone.ZoneKnockback(zones), this);
@@ -83,6 +86,7 @@ public class DreamWorldEdit extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (spawnMovement != null) spawnMovement.shutdown();
         if (engine != null) engine.stop();
         if (scheduler != null) scheduler.cancelAll();
     }
@@ -90,6 +94,7 @@ public class DreamWorldEdit extends JavaPlugin {
     public SchedulerBridge scheduler() { return scheduler; }
     public org.mydreamduels.dreamworldedit.spawn.SpawnManager spawns() { return spawns; }
     public org.mydreamduels.dreamworldedit.zone.ZoneManager zones() { return zones; }
+    public org.mydreamduels.dreamworldedit.zone.SpawnMovement spawnMovement() { return spawnMovement; }
     public SessionManager sessions() { return sessions; }
     public Engine engine() { return engine; }
     public Operations ops() { return ops; }

@@ -19,6 +19,8 @@ permissions:
       dreamworldedit.zone.bypass: true
       dreamworldedit.zone.escape: true
       dreamworldedit.spawn.instant: true
+      dreamworldedit.spawnfly: true
+      dreamworldedit.doublejump: true
   dreamworldedit.admin:
     description: /dwe reload
     default: op
@@ -35,6 +37,20 @@ permissions:
     default: op
   dreamworldedit.zone.bypass:
     description: Build and open chests inside protected zones (pvp/damage rules still apply)
+    default: op
+  dreamworldedit.spawnfly:
+    description: /spawnfly - fly inside spawn fly areas (turns off when you leave). Give it to a rank with LuckPerms.
+    default: op
+    children:
+      dreamworldedit.command.spawnfly: true
+  dreamworldedit.doublejump:
+    description: Double jump inside double jump areas. Give it to a rank with LuckPerms.
+    default: op
+  dreamworldedit.command.spawnflywand:
+    description: /spawnflywand - make spawn fly areas (admin)
+    default: op
+  dreamworldedit.command.doublejumpwand:
+    description: /doublejumpwand - make double jump areas (admin)
     default: op
   dreamworldedit.limit.unlimited:
     description: No block limit per edit (otherwise dreamworldedit.limit.<number> or limits.default)

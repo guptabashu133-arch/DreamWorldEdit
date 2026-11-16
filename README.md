@@ -66,6 +66,9 @@ are searched too.
 | `dreamworldedit.brush.use` | op |
 | `dreamworldedit.limit.unlimited` / `dreamworldedit.limit.<number>` | op / - (`limits.default` otherwise) |
 | `dreamworldedit.admin` - `/dwe reload` | op |
+| `dreamworldedit.spawnfly` - `/spawnfly` inside spawn fly areas | op |
+| `dreamworldedit.doublejump` - double jump inside double jump areas | op |
+| `dreamworldedit.command.spawnflywand` / `.doublejumpwand` - make the areas | op |
 
 ## Not included (compared to FAWE)
 Block entity contents (chest items, sign text) and entities are not copied/pasted - only blocks.
@@ -93,6 +96,37 @@ Select an area (`//wand`, then left and right click), then `/zone create spawn` 
 | `drops` | off | dropping items |
 | `trample` | off | trampling farmland |
 | `push` | off | players knocking each other around: hits, wind charges, maces, walking into each other |
+| `fly` | off | when **on**: players with `dreamworldedit.spawnfly` can use `/spawnfly` here |
+| `doublejump` | off | when **on**: players with `dreamworldedit.doublejump` can double jump here |
 
 Ops and `dreamworldedit.zone.bypass` can still build, open containers, throw pearls and drop items; pvp, damage and
 hunger rules apply to everyone.
+
+## Spawn fly and double jump
+Fly and double jump that only work at spawn, like on big survival servers. Each rank gets them with LuckPerms.
+
+**1. Make the area** (admin):
+```
+/spawnflywand                         <- a diamond axe: left click corner 1, right click corner 2
+/spawnflywand create spawnfly -full   <- -full = from bedrock to the sky
+/doublejumpwand                       <- same for double jump
+/doublejumpwand create spawnjump -full
+```
+Already have a `spawn` zone? Just turn the rules on there: `/zone flag spawn fly on` and `/zone flag spawn doublejump on`.
+`/spawnflywand list | delete <name>` and `/doublejumpwand list | delete <name>` manage them.
+These areas only add fly / double jump; protection (no pvp, no building) still comes from your spawn zone.
+
+**2. Give it to ranks:**
+```
+/lp group vip permission set dreamworldedit.spawnfly true
+/lp group mvp permission set dreamworldedit.doublejump true
+```
+
+**3. Players:**
+- `/spawnfly` (`/sfly`) turns flight on and off. Leaving the area, teleporting away, changing world or getting hit
+  turns it off, with no fall damage for a few seconds.
+- Double jump: press jump twice in the air. It launches you forward and up, and it doesn't work outside the area.
+
+Creative / spectator and `/fly` from other plugins are never touched. Settings (messages, jump power, height,
+cooldown, sound, particle, fall protection) are under `spawn-fly` and `double-jump` in `config.yml`.
+If DreamEngine's spawn double jump / spawn flight perks are also on, use one of the two, not both.

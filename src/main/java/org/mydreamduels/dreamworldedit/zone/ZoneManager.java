@@ -111,26 +111,34 @@ public final class ZoneManager implements Listener {
         zones = List.copyOf(out);
     }
 
+    private final Object saveLock = new Object();
+
+    /**
+     * Writes zones.yml off the main thread. The file is built from the CURRENT zones inside the
+     * write itself, so several quick changes can never leave an older snapshot on disk.
+     */
     private void save() {
-        YamlConfiguration y = new YamlConfiguration();
-        y.options().setHeader(List.of("Protected zones - change them in game with /zone (see /zone help).",
-                "true = allowed, false = blocked inside the zone."));
-        for (Zone z : zones) {
-            String p = "zones." + z.name() + ".";
-            y.set(p + "world", z.world());
-            y.set(p + "min.x", z.minX());
-            y.set(p + "min.y", z.minY());
-            y.set(p + "min.z", z.minZ());
-            y.set(p + "max.x", z.maxX());
-            y.set(p + "max.y", z.maxY());
-            y.set(p + "max.z", z.maxZ());
-            for (Zone.Flag f : Zone.Flag.values()) y.set(p + "flags." + f.id(), z.allows(f));
-        }
         plugin.scheduler().runAsync(() -> {
-            try {
-                y.save(file);
-            } catch (IOException e) {
-                plugin.getLogger().warning("Could not save zones.yml: " + e.getMessage());
+            synchronized (saveLock) {
+                YamlConfiguration y = new YamlConfiguration();
+                y.options().setHeader(List.of("Protected zones - change them in game with /zone (see /zone help).",
+                        "true = allowed, false = blocked inside the zone (fly / doublejump / keepinv: true = given there)."));
+                for (Zone z : zones) {
+                    String p = "zones." + z.name() + ".";
+                    y.set(p + "world", z.world());
+                    y.set(p + "min.x", z.minX());
+                    y.set(p + "min.y", z.minY());
+                    y.set(p + "min.z", z.minZ());
+                    y.set(p + "max.x", z.maxX());
+                    y.set(p + "max.y", z.maxY());
+                    y.set(p + "max.z", z.maxZ());
+                    for (Zone.Flag f : Zone.Flag.values()) y.set(p + "flags." + f.id(), z.allows(f));
+                }
+                try {
+                    y.save(file);
+                } catch (IOException e) {
+                    plugin.getLogger().warning("Could not save zones.yml: " + e.getMessage());
+                }
             }
         });
     }
@@ -158,6 +166,13 @@ public final class ZoneManager implements Listener {
         zones = List.copyOf(next);
         if (removed) save();
         return removed;
+    }
+
+    /** Several rules at once, one save. */
+    public synchronized void setFlags(Zone z, Map<Zone.Flag, Boolean> rules) {
+        for (Map.Entry<Zone.Flag, Boolean> e : rules.entrySet()) z.set(e.getKey(), e.getValue());
+        zones = List.copyOf(zones);
+        save();
     }
 
     public synchronized void setFlag(Zone z, Zone.Flag f, boolean allowed) {
@@ -192,6 +207,17 @@ public final class ZoneManager implements Listener {
             if (minX <= z.maxX() && maxX >= z.minX() && minZ <= z.maxZ() && maxZ >= z.minZ()) return z.name();
         }
         return null;
+    }
+
+    /** For grant rules (fly, doublejump, keepinv): true when ANY zone at this spot has the rule on. */
+    public boolean granted(Location l, Zone.Flag f) {
+        if (l == null || l.getWorld() == null) return false;
+        List<Zone> list = zones;
+        if (list.isEmpty()) return false;
+        String w = l.getWorld().getName();
+        int x = l.getBlockX(), y = l.getBlockY(), z = l.getBlockZ();
+        for (Zone zone : list) if (zone.allows(f) && zone.contains(w, x, y, z)) return true;
+        return false;
     }
 
     public boolean blocked(Location l, Zone.Flag f) {
